@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 
+	"food-serve.com/internal/app"
 	cache "food-serve.com/internal/cache"
 	"food-serve.com/internal/db"
-	"food-serve.com/internal/user"
 	"food-serve.com/pkg/config"
+	logs "food-serve.com/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/go-sql-driver/mysql"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -30,6 +32,12 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
+	//setup zap logger and make it globally available
+	logger := logs.InitLogger()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+	zap.L().Info("Logger was initialized!")
 
 	r := gin.Default()
 
@@ -54,9 +62,8 @@ func main() {
 	//SETUP REDIS SERVER - run container before this pls
 	cache.RedisClient(Env)
 
-	userStore := user.NewStore(database) //now userStore has db inside it
-	userService := user.NewHandler(userStore)
-	userService.RegisterRoutes(r)
+	//handles routes and services
+	app.NewApplication(database, r)
 
 	//now we initialize into services and stores
 	//start server
