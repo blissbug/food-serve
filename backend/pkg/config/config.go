@@ -2,41 +2,35 @@ package config
 
 import (
 	"fmt"
-	"log"
-	"os"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	DBUser string
-	DBPass string
-	DBName string
-	DBAddr string
+	DBUser string `mapstructure:"DBUser"`
+	DBPass string `mapstructure:"DBPass"`
+	DBName string `mapstructure:"DBName"`
+	DBAddr string `mapstructure:"DBAddr"`
 
-	RedisAddr string
+	RedisAddr string `mapstructure:"RedisAddr"`
 }
 
-func LoadConfig() Config {
-	err := godotenv.Load()
+func LoadConfig() (Config, error) {
+	cfg := Config{}
+	viper.SetConfigFile(".env")
+	err := viper.ReadInConfig()
+
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		return cfg, fmt.Errorf("No .env file found")
 	}
-	return Config{
-		DBUser:    getEnv("DBUser", "root"),
-		DBName:    getEnv("DBName", "foodserve"),
-		DBPass:    getEnv("DBPass", ""),
-		DBAddr:    getEnv("DBAddr", "127.0.0.1:3306"),
-		RedisAddr: getEnv("RedisAddr", "127.0.0.1:6379"),
-	}
-}
 
-func getEnv(key string, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
+	err = viper.Unmarshal(&cfg)
+
+	if err != nil {
+		return cfg, fmt.Errorf("Error reading .env file: %s", err)
 	}
-	return value
+
+	return cfg, nil
 }
 
 func (c Config) Validate() error {

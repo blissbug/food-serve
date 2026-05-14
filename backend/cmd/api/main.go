@@ -16,9 +16,15 @@ func main() {
 	//connect to db
 	//setup server
 	//creating a router from gin
-	var Env config.Config = config.LoadConfig()
+	Env, err := config.LoadConfig()
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	//validate env vars
-	err := Env.Validate()
+	err = Env.Validate()
 
 	if err != nil {
 		fmt.Println(err)
@@ -54,5 +60,9 @@ func main() {
 
 	//now we initialize into services and stores
 	//start server
-	r.Run(":8080")
+	err = r.Run(":8080")
+
+	if err != nil {
+		fmt.Println(err)
+	}
 }
