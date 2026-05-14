@@ -1,15 +1,18 @@
 package user
 
 import (
+	"fmt"
+
+	"food-serve.com/pkg/response"
 	"food-serve.com/pkg/types"
 	"food-serve.com/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
-// depending on requirement i can have multiple dbs of multiple stores as userStore,
-// FoodStore all of same type and can be extended accordingly
-// this allows to inject mulitple dbs
+// Handler depending on requirement I can have multiple dbs of multiple stores as userStore,
+// FoodStore all are of same type and can be extended accordingly
+// this allows to inject multiple dbs
 type Handler struct {
 	userStore *UserStore //has db internally
 }
@@ -25,7 +28,7 @@ func (h Handler) HandleLogin(ctx *gin.Context) {
 	err := ctx.ShouldBindJSON(&loginPayload) //bind body from request to the object
 
 	if err != nil {
-		ctx.JSON(400, gin.H{"message": "Could not parse the request"})
+		response.Error(ctx, err, 400)
 		return
 	}
 
@@ -33,25 +36,25 @@ func (h Handler) HandleLogin(ctx *gin.Context) {
 	err = validate.Struct(loginPayload)
 
 	if err != nil {
-		ctx.JSON(400, gin.H{"message": "Could not parse the request, a required field is empty"})
+		response.Error(ctx, fmt.Errorf("could not parse the request, a required field is empty"), 400)
 		return
 	}
 
 	user, err := h.userStore.FindUser(loginPayload.Email)
 
 	if err != nil {
-		ctx.JSON(400, gin.H{"message": err.Error()})
+		response.Error(ctx, err, 400)
 		return
 	}
 
 	isPasswordValid := utils.ComparePassword(loginPayload.Password, user.Password)
 
 	if !isPasswordValid {
-		ctx.JSON(400, gin.H{"message": "Invalid credentials"})
+		response.Error(ctx, fmt.Errorf("invalid credentials"), 400)
 		return
 	}
 
-	ctx.JSON(200, gin.H{"message": "Login successful"})
+	response.JSON(ctx, gin.H{"message": "Login successful"})
 }
 
 func (h Handler) HandleRegister(ctx *gin.Context) {
@@ -60,7 +63,7 @@ func (h Handler) HandleRegister(ctx *gin.Context) {
 	err := ctx.ShouldBindJSON(&registerPayload)
 
 	if err != nil {
-		ctx.JSON(400, gin.H{"message": "Could not parse the request"})
+		response.Error(ctx, err, 400)
 		return
 	}
 

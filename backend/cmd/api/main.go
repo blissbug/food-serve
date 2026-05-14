@@ -53,6 +53,7 @@ func main() {
 	database, err := db.NewDBStorage(dsn)
 
 	if err != nil {
+		zap.L().Error("DB connection failed", zap.Error(err))
 		fmt.Println(err)
 		return
 	}
