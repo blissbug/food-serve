@@ -1,17 +1,18 @@
-package rs
+package cache
 
 import (
 	"context"
 	"fmt"
 
+	"food-serve.com/pkg/config"
 	"github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
 
-func RedisClient() {
+func RedisClient(cfg config.Config) {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     cfg.RedisAddr,
 		Password: "",
 		DB:       0,
 	})

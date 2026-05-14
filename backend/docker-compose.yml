@@ -1,0 +1,54 @@
+services:
+  app:
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    build:
+      context: .
+    container_name: kitchen_mgmt
+    hostname: kitchen_mgmt
+    networks:
+      - kitchen_mgmt_api_net
+    ports:
+      - 8080:8080
+    env_file:
+      - .env
+
+  database:
+    image: mysql:8.0.46
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DBPass}
+      MYSQL_DATABASE: ${DBName}
+    volumes:
+      - mysql-go:/var/lib/mysql
+    ports:
+      - 3356:3306
+    networks:
+      - kitchen_mgmt_api_net
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - 6379:6379
+    environment:
+      PMA_HOST: database
+      PMA_ARBITRARY: 1
+    depends_on:
+      - database
+    networks:
+      - kitchen_mgmt_api_net
+
+volumes:
+  mysql-go:
+
+networks:
+  kitchen_mgmt_api_net:
+    driver: bridge

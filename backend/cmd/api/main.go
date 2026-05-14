@@ -3,42 +3,56 @@ package main
 import (
 	"fmt"
 
+	cache "food-serve.com/internal/cache"
 	"food-serve.com/internal/db"
+	"food-serve.com/internal/user"
 	"food-serve.com/pkg/config"
 	"github.com/gin-gonic/gin"
 	"github.com/go-sql-driver/mysql"
 )
 
-var Env config.Config = config.LoadConfig()
-
-
-func main(){
-  //load env
-	//connect to db 
+func main() {
+	//load env
+	//connect to db
 	//setup server
 	//creating a router from gin
+	var Env config.Config = config.LoadConfig()
+	//validate env vars
+	err := Env.Validate()
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	r := gin.Default()
 
 	dsn := (&mysql.Config{
-		User: Env.DBUser,
-		Passwd: Env.DBPass,
-		Addr: Env.DBAddr,
-		DBName: Env.DBName,
+		User:                 Env.DBUser,
+		Passwd:               Env.DBPass,
+		Net:                  "tcp",
+		Addr:                 Env.DBAddr,
+		DBName:               Env.DBName,
+		AllowNativePasswords: true,
 	}).FormatDSN()
 
 	database, err := db.NewDBStorage(dsn)
 
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	fmt.Println("db connected wohooo!!")
 
-	fmt.Println(database)
+	//SETUP REDIS SERVER - run container before this pls
+	cache.RedisClient(Env)
+
+	userStore := user.NewStore(database) //now userStore has db inside it
+	userService := user.NewHandler(userStore)
+	userService.RegisterRoutes(r)
 
 	//now we initialize into services and stores
-
-	//start server 
+	//start server
 	r.Run(":8080")
 }
