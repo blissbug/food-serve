@@ -42,12 +42,17 @@ func Authenticate() gin.HandlerFunc {
 
 		tokenString = parts[1]
 
+		fmt.Println("i was here??")
+
 		if tokenString == "" {
 			response.Error(ctx, errors.New("unauthorized"), 401)
 			return
 		}
 
 		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method")
+			}
 			return []byte(Env.JWTSecret), nil
 		})
 		if err != nil || !token.Valid {

@@ -20,8 +20,9 @@ func NewApplication(database *gorm.DB, r *gin.Engine, rdb cache.Cache) {
 	userService := user.NewHandler(userStore, rdb)
 	userService.RegisterRoutes(r)
 
-	r.Use(middleware.Authenticate())
-	r.GET("/me", func(c *gin.Context) {
+	authenticated := r.Group("/")
+	authenticated.Use(middleware.Authenticate())
+	authenticated.GET("/me", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "hello", "userID": c.GetInt(middleware.UserIDKey), "email": c.GetString(middleware.EmailKey)})
 	})
 

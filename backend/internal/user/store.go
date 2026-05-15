@@ -48,3 +48,11 @@ func (userStore UserStore) VerifyUser(user types.User) (bool, error) {
 	}
 	return true, nil
 }
+
+func (userStore UserStore) GetUserById(id uint) (user types.User, err error) {
+	res := userStore.db.Find(&user, "id = ?", id)
+	if res.Error != nil {
+		return user, res.Error
+	}
+	return user, nil
+}

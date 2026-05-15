@@ -45,3 +45,7 @@ func (c Cache) GetKey(ctx context.Context, key string) (string, error) {
 func (c Cache) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	return c.client.Set(ctx, key, value, ttl).Err()
 }
+
+func (c Cache) DeleteKey(ctx context.Context, key string) error {
+	return c.client.Del(ctx, key).Err()
+}

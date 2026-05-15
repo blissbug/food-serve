@@ -2,13 +2,16 @@ package user
 
 import (
 	"fmt"
+	"time"
 
 	"food-serve.com/internal/cache"
+	"food-serve.com/pkg/config"
 	"food-serve.com/pkg/response"
 	"food-serve.com/pkg/types"
 	"food-serve.com/pkg/utils"
 	"food-serve.com/pkg/validator"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,6 +21,11 @@ import (
 type Handler struct {
 	userStore *UserStore //has db internally
 	rdb       cache.Cache
+}
+
+type RefreshTokenClaims struct {
+	UserID uint
+	jwt.RegisteredClaims
 }
 
 func NewHandler(userStore *UserStore, rdb cache.Cache) *Handler {
@@ -169,12 +177,100 @@ func (h Handler) HandlerVerifyLogin(ctx *gin.Context) {
 		response.Error(ctx, fmt.Errorf("invalid otp"), 400)
 		return
 	}
-	token, err := utils.JWTwithClaims(user)
+	accessToken, refreshToken, err := utils.JWTwithClaimsForTokens(user)
 
 	if err != nil {
 		response.Error(ctx, err, 400)
 		return
 	}
 
-	response.JSON(ctx, gin.H{"message": "Login successful", "token": token})
+	redisKey = fmt.Sprintf("%d:refreshToken", user.ID)
+	//add refresh token to redis
+	err = h.rdb.SetKey(ctx, redisKey, refreshToken, time.Hour*24*7)
+
+	if err != nil {
+		response.Error(ctx, err, 400)
+		return
+	}
+
+	response.JSON(ctx, gin.H{"message": "Login successful", "access-token": accessToken, "refresh-token": refreshToken})
+}
+
+func (h Handler) HandleRefresh(ctx *gin.Context) {
+	var RefreshPayload types.RefreshToken
+	err := ctx.ShouldBindJSON(&RefreshPayload)
+
+	if err != nil {
+		response.Error(ctx, err, 400)
+		return
+	}
+
+	Env, err := config.LoadConfig()
+
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	refreshToken, err := jwt.ParseWithClaims(RefreshPayload.RefreshToken, &RefreshTokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(Env.JWTSecret), nil
+	})
+
+	if err != nil || !refreshToken.Valid {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	claims, ok := refreshToken.Claims.(*RefreshTokenClaims)
+	if !ok || !refreshToken.Valid {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	userId := claims.UserID
+	redisKey := fmt.Sprintf("%d:refreshToken", userId)
+
+	storedRefreshToken, err := h.rdb.GetKey(ctx, redisKey)
+
+	if err != nil {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	if storedRefreshToken != RefreshPayload.RefreshToken {
+		response.Error(ctx, err, 401)
+		return
+	}
+	//now we have the user id and refresh token which are valid, so we give a new access token + update the refresh token\
+
+	user, err := h.userStore.GetUserById(userId)
+
+	if err != nil {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	newAccessToken, newRefreshToken, err := utils.JWTwithClaimsForTokens(user)
+
+	if err != nil {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	err = h.rdb.DeleteKey(ctx, redisKey)
+	if err != nil {
+		response.Error(ctx, err, 401)
+		return
+	}
+	err = h.rdb.SetKey(ctx, redisKey, newRefreshToken, time.Hour*24*7)
+
+	if err != nil {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	response.JSON(ctx, gin.H{"message": "Refresh successful", "access-token": newAccessToken, "refresh-token": newRefreshToken})
 }

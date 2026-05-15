@@ -25,3 +25,7 @@ type OTP struct {
 	Otp   string `json:"otp" validate:"required,min=6,max=6"`
 	Email string `json:"email" validate:"required,email"`
 }
+
+type RefreshToken struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
