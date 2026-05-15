@@ -13,6 +13,7 @@ type Config struct {
 	DBAddr string `mapstructure:"DBAddr"`
 
 	RedisAddr string `mapstructure:"RedisAddr"`
+	JWTSecret string `mapstructure:"JWTSecret"`
 }
 
 func LoadConfig() (Config, error) {
@@ -48,6 +49,9 @@ func (c Config) Validate() error {
 	}
 	if c.RedisAddr == "" {
 		return fmt.Errorf("RedisAddr is required")
+	}
+	if c.JWTSecret == "" {
+		return fmt.Errorf("JWTSecret is required")
 	}
 	return nil
 }

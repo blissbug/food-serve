@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"food-serve.com/pkg/types"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
@@ -38,13 +37,6 @@ func NewDBStorage(dsn string) (db *gorm.DB, err error) {
 	sqlDb.SetConnMaxLifetime(time.Hour)
 
 	fmt.Println("DB Connected yayy!!")
-
-	//TODO: make a separate function for this
-	err = db.AutoMigrate(&types.User{})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
 
 	fmt.Println("tables created")
 	return db, nil

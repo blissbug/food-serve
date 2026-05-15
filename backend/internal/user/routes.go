@@ -3,6 +3,8 @@ package user
 import "github.com/gin-gonic/gin"
 
 func (h *Handler) RegisterRoutes(s *gin.Engine) {
-	s.POST("/login", h.HandleLogin)
-	s.POST("/register", h.HandleRegister)
+	s.POST("/login/send-otp", h.HandleLogin)
+	s.POST("/login/verify", h.HandlerVerifyLogin)
+	s.POST("/register/send-otp", h.HandleRegister)
+	s.POST("/register/verify", h.HandleVerifyRegistration)
 }

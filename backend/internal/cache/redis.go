@@ -15,14 +15,12 @@ type Cache struct {
 
 var ctx = context.Background()
 
-func RedisClient(cfg config.Config) {
+func RedisClient(cfg config.Config) Cache {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
 		Password: "",
 		DB:       0,
 	})
-
-	defer rdb.Close()
 
 	pong, err := rdb.Ping(ctx).Result()
 
@@ -31,6 +29,9 @@ func RedisClient(cfg config.Config) {
 	}
 
 	fmt.Println("Connected to Redis:", pong)
+	return Cache{
+		client: rdb,
+	}
 }
 
 func (c Cache) GetKey(ctx context.Context, key string) (string, error) {
@@ -41,6 +42,6 @@ func (c Cache) GetKey(ctx context.Context, key string) (string, error) {
 	return val, nil
 }
 
-func (c Cache) SetKey(ctx context.Context, key string, value interface{}, time time.Duration) error {
-	return c.client.Set(ctx, key, value, time).Err()
+func (c Cache) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	return c.client.Set(ctx, key, value, ttl).Err()
 }

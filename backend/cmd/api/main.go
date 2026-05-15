@@ -61,10 +61,10 @@ func main() {
 	fmt.Println("db connected wohooo!!")
 
 	//SETUP REDIS SERVER - run container before this pls
-	cache.RedisClient(Env)
+	rdb := cache.RedisClient(Env)
 
 	//handles routes and services
-	app.NewApplication(database, r)
+	app.NewApplication(database, r, rdb)
 
 	//now we initialize into services and stores
 	//start server

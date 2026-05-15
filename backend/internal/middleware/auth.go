@@ -1,0 +1,69 @@
+package middleware
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"food-serve.com/pkg/config"
+	"food-serve.com/pkg/response"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+)
+
+type JWTClaims struct {
+	UserID int
+	Email  string
+	Role   string
+	jwt.RegisteredClaims
+}
+
+const (
+	UserIDKey = "userID"
+	EmailKey  = "email"
+	RoleKey   = "role"
+)
+
+func Authenticate() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		Env, err := config.LoadConfig()
+		if err != nil {
+			response.Error(ctx, err, 500)
+			return
+		}
+
+		tokenString := ctx.GetHeader("Authorization")
+		parts := strings.Split(tokenString, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			response.Error(ctx, errors.New("invalid token"), 401)
+			ctx.Abort()
+			return
+		}
+
+		tokenString = parts[1]
+
+		if tokenString == "" {
+			response.Error(ctx, errors.New("unauthorized"), 401)
+			return
+		}
+
+		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte(Env.JWTSecret), nil
+		})
+		if err != nil || !token.Valid {
+			response.Error(ctx, err, 401)
+			ctx.Abort()
+			return
+		} else if claims, ok := token.Claims.(*JWTClaims); ok {
+			ctx.Set(UserIDKey, claims.UserID)
+			ctx.Set(EmailKey, claims.Email)
+			ctx.Set(RoleKey, claims.Role)
+			fmt.Println(claims.UserID, claims.Email, claims.Role)
+			ctx.Next()
+		} else {
+			response.Error(ctx, errors.New("invalid token"), 401)
+			ctx.Abort()
+			return
+		}
+	}
+}

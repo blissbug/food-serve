@@ -17,23 +17,17 @@ func NewStore(db *gorm.DB) *UserStore {
 	}
 }
 
-func (userStore UserStore) CreateUser(user types.User) error {
-	res := userStore.db.Find(&user, "email = ?", user.Email)
-
-	if res.RowsAffected > 0 {
-		return fmt.Errorf("A user with this email already exists")
-	}
-
-	res = userStore.db.Create(&user)
+func (userStore UserStore) CreateUser(user types.User) (uint, error) {
+	res := userStore.db.Create(&user)
 
 	if res.Error != nil {
-		return res.Error
+		return 0, res.Error
 	}
 
-	return nil
+	return user.ID, nil
 }
 
-func (userStore UserStore) FindUser(email string) (user types.User, err error) {
+func (userStore UserStore) FindUserByEmail(email string) (user types.User, err error) {
 	res := userStore.db.Find(&user, "email = ?", email)
 
 	if res.RowsAffected == 0 {
@@ -45,4 +39,12 @@ func (userStore UserStore) FindUser(email string) (user types.User, err error) {
 	}
 
 	return user, nil
+}
+
+func (userStore UserStore) VerifyUser(user types.User) (bool, error) {
+	res := userStore.db.Where("email = ?", user.Email).First(&user).Update("is_verified", true)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return true, nil
 }
