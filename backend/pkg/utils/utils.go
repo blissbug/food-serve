@@ -28,7 +28,7 @@ func ComparePassword(password string, hashedPassword string) bool {
 	return err == nil
 }
 
-func JWTwithClaimsForTokens(user types.User) (string, string, error) {
+func JWTwithClaimsForTokens(user types.User, kitchenMember []types.KitchenMember) (string, string, error) {
 	Env, err := config.LoadConfig()
 	fmt.Println(Env)
 
@@ -37,11 +37,11 @@ func JWTwithClaimsForTokens(user types.User) (string, string, error) {
 	}
 
 	var accessToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userId": user.ID,
-		"email":  user.Email,
-		"role":   user.Role,
-		"exp":    time.Now().Add(time.Minute * 15).Unix(),
-		"iat":    time.Now().Unix(),
+		"userId":        user.ID,
+		"email":         user.Email,
+		"kitchenMember": kitchenMember,
+		"exp":           time.Now().Add(time.Minute * 15).Unix(),
+		"iat":           time.Now().Unix(),
 	})
 	accessTokenString, err := accessToken.SignedString([]byte(Env.JWTSecret))
 

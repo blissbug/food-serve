@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"food-serve.com/internal/cache"
+	kitchenmembers "food-serve.com/internal/kitchen-members"
 	"food-serve.com/pkg/config"
 	"food-serve.com/pkg/response"
 	"food-serve.com/pkg/types"
@@ -19,8 +20,9 @@ import (
 // FoodStore all are of the same type and can be extended accordingly
 // this allows injecting multiple dbs
 type Handler struct {
-	userStore *UserStore //has db internally
-	rdb       cache.Cache
+	userStore          *UserStore //has db internally
+	kitchenMemberStore *kitchenmembers.KitchenMembersStore
+	rdb                cache.Cache
 }
 
 type RefreshTokenClaims struct {
@@ -28,10 +30,11 @@ type RefreshTokenClaims struct {
 	jwt.RegisteredClaims
 }
 
-func NewHandler(userStore *UserStore, rdb cache.Cache) *Handler {
+func NewHandler(userStore *UserStore, rdb cache.Cache, kitchenMemberStore *kitchenmembers.KitchenMembersStore) *Handler {
 	return &Handler{
-		userStore: userStore,
-		rdb:       rdb,
+		userStore:          userStore,
+		rdb:                rdb,
+		kitchenMemberStore: kitchenMemberStore,
 	}
 }
 
@@ -165,6 +168,13 @@ func (h Handler) HandlerVerifyLogin(ctx *gin.Context) {
 		return
 	}
 
+	kitchenMember, err := h.kitchenMemberStore.GetKitchensSubscribedByAUser(user.ID)
+
+	if err != nil {
+		response.Error(ctx, err, 400)
+		return
+	}
+
 	redisKey := fmt.Sprintf("%d:otp:%v", user.ID, otpTypeLogin)
 	hashedOtp, err := h.rdb.GetKey(ctx, redisKey)
 	if err != nil {
@@ -177,7 +187,8 @@ func (h Handler) HandlerVerifyLogin(ctx *gin.Context) {
 		response.Error(ctx, fmt.Errorf("invalid otp"), 400)
 		return
 	}
-	accessToken, refreshToken, err := utils.JWTwithClaimsForTokens(user)
+
+	accessToken, refreshToken, err := utils.JWTwithClaimsForTokens(user, kitchenMember)
 
 	if err != nil {
 		response.Error(ctx, err, 400)
@@ -253,7 +264,14 @@ func (h Handler) HandleRefresh(ctx *gin.Context) {
 		return
 	}
 
-	newAccessToken, newRefreshToken, err := utils.JWTwithClaimsForTokens(user)
+	kitchenMember, err := h.kitchenMemberStore.GetKitchensSubscribedByAUser(user.ID)
+
+	if err != nil {
+		response.Error(ctx, err, 401)
+		return
+	}
+
+	newAccessToken, newRefreshToken, err := utils.JWTwithClaimsForTokens(user, kitchenMember)
 
 	if err != nil {
 		response.Error(ctx, err, 401)

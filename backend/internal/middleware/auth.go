@@ -12,16 +12,23 @@ import (
 )
 
 type JWTClaims struct {
-	UserID int
-	Email  string
-	Role   string
+	UserID           uint `json:"userId"`
+	Email            string
+	Role             string
+	KitchensAndRoles []KitchenAndRoleClaims `json:"kitchenMember"`
 	jwt.RegisteredClaims
 }
 
+type KitchenAndRoleClaims struct {
+	KitchenID uint `json:"kitchen_id"`
+	Role      string
+}
+
 const (
-	UserIDKey = "userID"
-	EmailKey  = "email"
-	RoleKey   = "role"
+	UserIDKey         = "userID"
+	EmailKey          = "email"
+	RoleKey           = "role"
+	KitchenAndRoleKey = "kitchenAndRole"
 )
 
 func Authenticate() gin.HandlerFunc {
@@ -63,6 +70,8 @@ func Authenticate() gin.HandlerFunc {
 			ctx.Set(UserIDKey, claims.UserID)
 			ctx.Set(EmailKey, claims.Email)
 			ctx.Set(RoleKey, claims.Role)
+			ctx.Set(KitchenAndRoleKey, claims.KitchensAndRoles)
+			fmt.Println(claims.KitchensAndRoles)
 			fmt.Println(claims.UserID, claims.Email, claims.Role)
 			ctx.Next()
 		} else {
