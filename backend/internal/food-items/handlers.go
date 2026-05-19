@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"food-serve.com/internal/middleware"
+	"food-serve.com/pkg/response"
 	"food-serve.com/pkg/types"
 	"food-serve.com/pkg/utils"
 	"food-serve.com/pkg/validator"
@@ -40,6 +41,15 @@ func (h Handler) CreateFoodItem(ctx *gin.Context) {
 		return
 	}
 
+	kitchenIdValue := ctx.Param("kitchenId")
+
+	kitchenId, err := strconv.Atoi(kitchenIdValue)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
 	//get kitchen members for the said kitchen
 	value, exists := ctx.Get(middleware.KitchenAndRoleKey)
 
@@ -57,7 +67,7 @@ func (h Handler) CreateFoodItem(ctx *gin.Context) {
 	}
 
 	//check if the user is admin of the said kitchen
-	isUserAdminOfThisKitchen := utils.CheckRoleForThisKitchen(CreateFoodItemPayload.KitchenID, "admin", kitchensAndRoles)
+	isUserAdminOfThisKitchen := utils.CheckRoleForThisKitchen(uint(kitchenId), "admin", kitchensAndRoles)
 
 	if !isUserAdminOfThisKitchen {
 		ctx.JSON(401, gin.H{"error": fmt.Errorf("user does not have access to this kitchen as admin")})
@@ -75,7 +85,7 @@ func (h Handler) CreateFoodItem(ctx *gin.Context) {
 		Name:        CreateFoodItemPayload.Name,
 		Description: CreateFoodItemPayload.Description,
 		Price:       CreateFoodItemPayload.Price,
-		KitchenID:   CreateFoodItemPayload.KitchenID,
+		KitchenID:   uint(kitchenId),
 		IsActive:    CreateFoodItemPayload.IsActive,
 		IsVeg:       CreateFoodItemPayload.IsVeg,
 		IsVegan:     CreateFoodItemPayload.IsVegan,
@@ -113,10 +123,42 @@ func (h Handler) UpdateFoodItem(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	value := ctx.Param("foodItemId")
-	foodItemId, err := strconv.Atoi(value)
+
+	kitchenIdValue := ctx.Param("kitchenId")
+	kitchenId, err := strconv.Atoi(kitchenIdValue)
+
 	if err != nil {
 		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	value := ctx.Param("foodItemId")
+	foodItemId, err := strconv.Atoi(value)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	//get kitchen members for the said kitchen
+	kitchenValue, exists := ctx.Get(middleware.KitchenAndRoleKey)
+
+	if !exists {
+		ctx.JSON(401, gin.H{"error": fmt.Errorf("user does not have access to this kitchen as admin")})
+		return
+	}
+
+	kitchensAndRoles, ok := kitchenValue.([]types.KitchenAndRoleClaims)
+
+	if !ok {
+		fmt.Println("kitchen and roles not in correct format")
+	}
+
+	//check if the user is admin of the said kitchen
+	isUserAdminOfThisKitchen := utils.CheckRoleForThisKitchen(uint(kitchenId), "admin", kitchensAndRoles)
+
+	if !isUserAdminOfThisKitchen {
+		ctx.JSON(401, gin.H{"error": fmt.Errorf("user does not have access to this kitchen as admin")})
 		return
 	}
 
@@ -148,11 +190,83 @@ func (h Handler) UpdateFoodItem(ctx *gin.Context) {
 		existingImageIds = append(existingImageIds, uint(intValue))
 	}
 
-	err = h.FoodItemsService.UpdateFoodItem(UpdateFoodItemPayload, uint(foodItemId), ItemImageData, existingImageIds)
+	err = h.FoodItemsService.UpdateFoodItem(UpdateFoodItemPayload, uint(foodItemId), ItemImageData, existingImageIds, uint(kitchenId))
 
 	if err != nil {
 		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 	ctx.JSON(200, gin.H{"message": "Food item updated successfully"})
+}
+
+func (h Handler) DeleteFoodItem(ctx *gin.Context) {
+	value := ctx.Param("foodItemId")
+
+	itemId, err := strconv.Atoi(value)
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	//get kitchen members for the said kitchen
+	kitchenValue, exists := ctx.Get(middleware.KitchenAndRoleKey)
+
+	if !exists {
+		ctx.JSON(401, gin.H{"error": fmt.Errorf("user does not have access to this kitchen as admin")})
+		return
+	}
+
+	kitchensAndRoles, ok := kitchenValue.([]types.KitchenAndRoleClaims)
+
+	if !ok {
+		fmt.Println("kitchen and roles not in correct format")
+	}
+
+	kitchenIdValue := ctx.Param("kitchenId")
+	kitchenId, err := strconv.Atoi(kitchenIdValue)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	//check if the user is admin of the said kitchen
+	isUserAdminOfThisKitchen := utils.CheckRoleForThisKitchen(uint(kitchenId), "admin", kitchensAndRoles)
+
+	if !isUserAdminOfThisKitchen {
+		ctx.JSON(401, gin.H{"error": fmt.Errorf("user does not have access to this kitchen as admin")})
+		return
+	}
+
+	err = h.FoodItemsService.DeleteFoodItem(uint(itemId), uint(kitchenId))
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(200, gin.H{"message": "Food item deleted successfully"})
+}
+
+func (h Handler) GetFoodItems(ctx *gin.Context) {
+	kitchenIdValue := ctx.Param("kitchenId")
+	kitchenId, err := strconv.Atoi(kitchenIdValue)
+
+	if err != nil {
+		response.Error(ctx, err, 400)
+		return
+	}
+
+	page := ctx.GetString("page")
+	pageSize := ctx.GetString("pageSize")
+
+	foodItems, err := h.FoodItemsService.GetAllFoodItemsForAKitchen(uint(kitchenId), page, pageSize)
+
+	if err != nil {
+		response.Error(ctx, err, 400)
+		return
+	}
+
+	response.JSON(ctx, foodItems)
+	return
 }

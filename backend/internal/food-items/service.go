@@ -1,6 +1,7 @@
 package food_items
 
 import (
+	"errors"
 	"slices"
 
 	foodItemImages "food-serve.com/internal/food-item-images"
@@ -47,7 +48,7 @@ func (f FoodService) CreateFoodItem(foodItem types.FoodItem, ItemImageData []typ
 
 }
 
-func (f FoodService) UpdateFoodItem(updatedFoodItem types.UpdateFoodItemPayload, itemId uint, ItemImageData []types.ImageDataStruct, existingImageIds []uint) error {
+func (f FoodService) UpdateFoodItem(updatedFoodItem types.UpdateFoodItemPayload, itemId uint, ItemImageData []types.ImageDataStruct, existingImageIds []uint, kitchenId uint) error {
 	var foodItemUpdates = make(map[string]interface{})
 
 	if updatedFoodItem.Name != nil {
@@ -83,9 +84,12 @@ func (f FoodService) UpdateFoodItem(updatedFoodItem types.UpdateFoodItemPayload,
 			}
 		}
 
-		err = f.foodStore.UpdateFoodItem(tx, foodItemUpdates, itemId)
+		err, resp := f.foodStore.UpdateFoodItem(tx, foodItemUpdates, itemId, kitchenId)
 		if err != nil {
 			return err
+		}
+		if resp == 0 {
+			return errors.New("no such item found for your kitchen")
 		}
 		//delete the images that are not in the updated payload
 		for _, imageId := range deletedImages {
@@ -112,4 +116,26 @@ func (f FoodService) UpdateFoodItem(updatedFoodItem types.UpdateFoodItemPayload,
 		return nil
 	})
 
+}
+
+func (f FoodService) DeleteFoodItem(itemId uint, kitchenId uint) error {
+	return f.db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Delete(&types.FoodItem{}, "id = ? AND kitchen_id = ?", itemId, kitchenId).Error
+		if err != nil {
+			return err
+		}
+
+		//TODO: delete from cloudinary as well
+		return tx.Delete(&types.FoodItemImage{}, "food_item_id = ?", itemId).Error
+	})
+}
+
+// GetAllFoodItemsForAKitchen gets all the items, active or inactive, to be shown on admin side
+func (f FoodService) GetAllFoodItemsForAKitchen(kitchenId uint, page string, pageSize string) ([]types.FoodItem, error) {
+	foodItems, err := f.foodStore.GetAllFoodItemsByKitchenId(kitchenId, page, pageSize)
+
+	if err != nil {
+		return nil, err
+	}
+	return foodItems, nil
 }

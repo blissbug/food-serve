@@ -1,6 +1,9 @@
 package types
 
+import "gorm.io/gorm"
+
 type User struct {
+	gorm.Model
 	ID         uint   `json:"id"`
 	Username   string `json:"username" validate:"required,min=3,max=20"`
 	Email      string `json:"email" validate:"required,email"`
@@ -40,6 +43,7 @@ type RefreshToken struct {
 
 // go automatically maps kitchenMember to kitchen_members table
 type KitchenMember struct {
+	gorm.Model
 	UserID    uint   `json:"user_id"`
 	KitchenID uint   `json:"kitchen_id"`
 	Role      string `json:"role"`
@@ -51,12 +55,14 @@ type KitchenMemberClaims struct {
 }
 
 type Kitchen struct {
+	gorm.Model
 	ID   uint   `json:"id"`
 	Name string `json:"name" validate:"required,min=3,max=20"`
 	Slug string `json:"slug" validate:"required,min=3,max=20"`
 }
 
 type FoodItem struct {
+	gorm.Model
 	ID          uint    `json:"id"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
@@ -79,7 +85,6 @@ type CreateFoodItemPayload struct {
 	Name        string  `json:"name" validate:"required,min=3,max=20"`
 	Description string  `json:"description" validate:"required,min=3,max=200"`
 	Price       float64 `json:"price" validate:"required,numeric"`
-	KitchenID   uint    `json:"kitchen_id" validate:"required"`
 	IsVeg       bool    `json:"is_veg"`
 	IsVegan     bool    `json:"is_vegan"`
 	IsActive    bool    `json:"is_active"`
@@ -94,7 +99,6 @@ type UpdateFoodItemPayload struct {
 	Name        *string  `form:"name" validate:"min=3,max=20"`
 	Description *string  `form:"description" validate:"min=3,max=200"`
 	Price       *float64 `form:"price" validate:"numeric"`
-	KitchenID   *uint    `form:"kitchen_id" validate:"required"`
 	IsVeg       *bool    `form:"is_veg"`
 	IsVegan     *bool    `form:"is_vegan"`
 	IsActive    *bool    `form:"is_active"`
