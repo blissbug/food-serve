@@ -2,24 +2,15 @@ package food_items
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"strconv"
 
 	"food-serve.com/internal/middleware"
 	"food-serve.com/pkg/types"
 	"food-serve.com/pkg/utils"
 	"food-serve.com/pkg/validator"
 	"github.com/cloudinary/cloudinary-go/v2"
-	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
-
-type ImageDataStruct struct {
-	ImageURL            string `json:"imageUrl"`
-	OriginalDestination string `json:"originalDestination"`
-	OriginalOrder       int    `json:"originalOrder"`
-}
 
 type Handler struct {
 	FoodItemsService *FoodService
@@ -92,44 +83,11 @@ func (h Handler) CreateFoodItem(ctx *gin.Context) {
 
 	files := form.File["images"]
 
-	var ItemImageData []ImageDataStruct
+	ItemImageData, uploadErr := utils.UploadImagesToCloudinary(files, h.cld, ctx)
 
-	for order, file := range files {
-		err := os.MkdirAll("./assets/uploads", os.ModePerm)
-		if err != nil {
-			return
-		}
-		// Upload the file to specific dst.
-		dst := filepath.Join("./assets/uploads", fmt.Sprintf("%s%s", uuid.NewString(), filepath.Ext(file.Filename)))
-		fileSaveError := ctx.SaveUploadedFile(file, dst)
-
-		if fileSaveError != nil {
-			ctx.JSON(400, gin.H{"error": fileSaveError.Error()})
-			return
-		}
-
-		//cloudinary job
-		resp, uploadErr := h.cld.Upload.Upload(ctx, dst, uploader.UploadParams{PublicID: uuid.NewString()})
-
-		if uploadErr != nil {
-			ctx.JSON(400, gin.H{"error": uploadErr.Error()})
-			return
-		}
-		//save with old file name
-		fmt.Println(resp.URL)
-
-		ItemImageData = append(ItemImageData, ImageDataStruct{
-			OriginalDestination: dst,
-			ImageURL:            resp.URL,
-			OriginalOrder:       order,
-		})
-
-		//delete it from local storage
-		fileRemoveErr := os.Remove(dst)
-		if fileRemoveErr != nil {
-			ctx.JSON(400, gin.H{"error": fileRemoveErr.Error()})
-			return
-		}
+	if uploadErr != nil {
+		ctx.JSON(400, gin.H{"error": uploadErr.Error()})
+		return
 	}
 
 	creationError := h.FoodItemsService.CreateFoodItem(foodItem, ItemImageData)
@@ -140,4 +98,61 @@ func (h Handler) CreateFoodItem(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, gin.H{"message": "Food item created successfully"})
+}
+
+func (h Handler) UpdateFoodItem(ctx *gin.Context) {
+	var UpdateFoodItemPayload types.UpdateFoodItemPayload
+	err := ctx.ShouldBind(&UpdateFoodItemPayload)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	err = validator.Validates(UpdateFoodItemPayload)
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	value := ctx.Param("foodItemId")
+	foodItemId, err := strconv.Atoi(value)
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	//get the files
+	form, err := ctx.MultipartForm()
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	files := form.File["images"]
+
+	ItemImageData, uploadErr := utils.UploadImagesToCloudinary(files, h.cld, ctx)
+
+	if uploadErr != nil {
+		ctx.JSON(400, gin.H{"error": uploadErr.Error()})
+		return
+	}
+
+	var existingImageIds []uint
+
+	for _, value := range UpdateFoodItemPayload.ExistingImageIDs {
+		intValue, err := strconv.Atoi(value)
+		if err != nil {
+			ctx.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		existingImageIds = append(existingImageIds, uint(intValue))
+	}
+
+	err = h.FoodItemsService.UpdateFoodItem(UpdateFoodItemPayload, uint(foodItemId), ItemImageData, existingImageIds)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(200, gin.H{"message": "Food item updated successfully"})
 }

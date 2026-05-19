@@ -68,6 +68,7 @@ type FoodItem struct {
 }
 
 type FoodItemImage struct {
+	ID                  uint   `json:"id"`
 	FoodItemID          uint   `json:"food_item_id"`
 	ImageURL            string `json:"image_url"`
 	OriginalDestination string `json:"original_destination"`
@@ -87,4 +88,22 @@ type CreateFoodItemPayload struct {
 type KitchenAndRoleClaims struct {
 	KitchenID uint `json:"kitchen_id"`
 	Role      string
+}
+
+type UpdateFoodItemPayload struct {
+	Name        *string  `form:"name" validate:"min=3,max=20"`
+	Description *string  `form:"description" validate:"min=3,max=200"`
+	Price       *float64 `form:"price" validate:"numeric"`
+	KitchenID   *uint    `form:"kitchen_id" validate:"required"`
+	IsVeg       *bool    `form:"is_veg"`
+	IsVegan     *bool    `form:"is_vegan"`
+	IsActive    *bool    `form:"is_active"`
+
+	ExistingImageIDs []string `form:"existing_image_ids"`
+}
+
+type ImageDataStruct struct {
+	ImageURL            string `json:"imageUrl"`
+	OriginalDestination string `json:"originalDestination"`
+	OriginalOrder       int    `json:"originalOrder"`
 }

@@ -2,11 +2,18 @@ package utils
 
 import (
 	"fmt"
+	"mime/multipart"
+	"os"
+	"path/filepath"
 	"time"
 
 	"food-serve.com/pkg/config"
 	"food-serve.com/pkg/types"
+	"github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -63,4 +70,43 @@ func CheckRoleForThisKitchen(kitchenId uint, role string, kitchenMembers []types
 		}
 	}
 	return false
+}
+
+func UploadImagesToCloudinary(files []*multipart.FileHeader, cld *cloudinary.Cloudinary, ctx *gin.Context) ([]types.ImageDataStruct, error) {
+	var ItemImageData []types.ImageDataStruct
+	for order, file := range files {
+		err := os.MkdirAll("./assets/uploads", os.ModePerm)
+		if err != nil {
+			return ItemImageData, err
+		}
+		// Upload the file to specific dst.
+		dst := filepath.Join("./assets/uploads", fmt.Sprintf("%s%s", uuid.NewString(), filepath.Ext(file.Filename)))
+		fileSaveError := ctx.SaveUploadedFile(file, dst)
+
+		if fileSaveError != nil {
+			return ItemImageData, fileSaveError
+		}
+
+		//cloudinary job
+		resp, uploadErr := cld.Upload.Upload(ctx, dst, uploader.UploadParams{PublicID: uuid.NewString()})
+
+		if uploadErr != nil {
+			return ItemImageData, uploadErr
+		}
+		//save with old file name
+		fmt.Println(resp.URL)
+
+		ItemImageData = append(ItemImageData, types.ImageDataStruct{
+			OriginalDestination: dst,
+			ImageURL:            resp.URL,
+			OriginalOrder:       order,
+		})
+
+		//delete it from local storage
+		fileRemoveErr := os.Remove(dst)
+		if fileRemoveErr != nil {
+			return ItemImageData, fileRemoveErr
+		}
+	}
+	return ItemImageData, nil
 }

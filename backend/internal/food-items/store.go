@@ -22,3 +22,11 @@ func (fStore FoodItemsStore) CreateFoodItem(tx *gorm.DB, foodItem types.FoodItem
 	}
 	return foodItem.ID, nil
 }
+
+func (fStore FoodItemsStore) UpdateFoodItem(tx *gorm.DB, foodItem map[string]interface{}, itemId uint) error {
+	res := tx.Model(&types.FoodItem{}).Where("id = ?", itemId).Updates(foodItem)
+	if res.Error != nil {
+		return res.Error
+	}
+	return nil
+}

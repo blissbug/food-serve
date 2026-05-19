@@ -23,3 +23,12 @@ func (store *Store) AddImageForItem(tx *gorm.DB, foodItemImage types.FoodItemIma
 	}
 	return nil
 }
+
+func (store *Store) GetImagesForItem(tx *gorm.DB, foodItemId uint) ([]types.FoodItemImage, error) {
+	var resp []types.FoodItemImage
+	err := tx.Where("food_item_id = ?", foodItemId).Find(&resp).Error
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
