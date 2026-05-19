@@ -14,6 +14,8 @@ type Config struct {
 
 	RedisAddr string `mapstructure:"RedisAddr"`
 	JWTSecret string `mapstructure:"JWTSecret"`
+
+	CloudinaryUrl string `mapstructure:"CLOUDINARY_URL"`
 }
 
 func LoadConfig() (Config, error) {
@@ -53,5 +55,9 @@ func (c Config) Validate() error {
 	if c.JWTSecret == "" {
 		return fmt.Errorf("JWTSecret is required")
 	}
+	if c.CloudinaryUrl == "" {
+		return fmt.Errorf("CloudinaryUrl is required")
+	}
+
 	return nil
 }

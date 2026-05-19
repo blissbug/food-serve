@@ -40,7 +40,7 @@ func JWTwithClaimsForTokens(user types.User, kitchenMember []types.KitchenMember
 		"userId":        user.ID,
 		"email":         user.Email,
 		"kitchenMember": kitchenMember,
-		"exp":           time.Now().Add(time.Minute * 15).Unix(),
+		"exp":           time.Now().Add(time.Minute * 60).Unix(),
 		"iat":           time.Now().Unix(),
 	})
 	accessTokenString, err := accessToken.SignedString([]byte(Env.JWTSecret))
@@ -53,4 +53,14 @@ func JWTwithClaimsForTokens(user types.User, kitchenMember []types.KitchenMember
 	refreshTokenString, err := refreshToken.SignedString([]byte(Env.JWTSecret))
 
 	return accessTokenString, refreshTokenString, err
+}
+
+func CheckRoleForThisKitchen(kitchenId uint, role string, kitchenMembers []types.KitchenAndRoleClaims) bool {
+	for i := 0; i < len(kitchenMembers); i++ {
+		kitchenMember := kitchenMembers[i]
+		if kitchenMember.KitchenID == kitchenId && kitchenMember.Role == role {
+			return true
+		}
+	}
+	return false
 }

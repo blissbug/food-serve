@@ -55,3 +55,36 @@ type Kitchen struct {
 	Name string `json:"name" validate:"required,min=3,max=20"`
 	Slug string `json:"slug" validate:"required,min=3,max=20"`
 }
+
+type FoodItem struct {
+	ID          uint    `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Price       float64 `json:"price"`
+	KitchenID   uint    `json:"kitchen_id"`
+	IsActive    bool    `json:"is_active"`
+	IsVeg       bool    `json:"is_veg"`
+	IsVegan     bool    `json:"is_vegan"`
+}
+
+type FoodItemImage struct {
+	FoodItemID          uint   `json:"food_item_id"`
+	ImageURL            string `json:"image_url"`
+	OriginalDestination string `json:"original_destination"`
+	DisplayOrder        int    `json:"display_order"`
+}
+
+type CreateFoodItemPayload struct {
+	Name        string  `json:"name" validate:"required,min=3,max=20"`
+	Description string  `json:"description" validate:"required,min=3,max=200"`
+	Price       float64 `json:"price" validate:"required,numeric"`
+	KitchenID   uint    `json:"kitchen_id" validate:"required"`
+	IsVeg       bool    `json:"is_veg"`
+	IsVegan     bool    `json:"is_vegan"`
+	IsActive    bool    `json:"is_active"`
+}
+
+type KitchenAndRoleClaims struct {
+	KitchenID uint `json:"kitchen_id"`
+	Role      string
+}

@@ -7,6 +7,7 @@ import (
 
 	"food-serve.com/pkg/config"
 	"food-serve.com/pkg/response"
+	"food-serve.com/pkg/types"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -15,13 +16,8 @@ type JWTClaims struct {
 	UserID           uint `json:"userId"`
 	Email            string
 	Role             string
-	KitchensAndRoles []KitchenAndRoleClaims `json:"kitchenMember"`
+	KitchensAndRoles []types.KitchenAndRoleClaims `json:"kitchenMember"`
 	jwt.RegisteredClaims
-}
-
-type KitchenAndRoleClaims struct {
-	KitchenID uint `json:"kitchen_id"`
-	Role      string
 }
 
 const (

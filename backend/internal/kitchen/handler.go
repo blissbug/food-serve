@@ -119,7 +119,7 @@ func (h KitchenHandler) SubscribeToKitchenAsAdmin(ctx *gin.Context) {
 		return
 	}
 
-	kitchenMembers, ok := value.([]types.KitchenMemberClaims)
+	kitchenMembers, ok := value.([]types.KitchenAndRoleClaims)
 
 	if !ok {
 		ctx.JSON(401, gin.H{"error": "Kitchen data is not in correct format!"})

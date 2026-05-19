@@ -6,6 +6,7 @@ import (
 	"food-serve.com/internal/app"
 	cache "food-serve.com/internal/cache"
 	"food-serve.com/internal/db"
+	asset_upload "food-serve.com/pkg/asset-upload"
 	"food-serve.com/pkg/config"
 	logs "food-serve.com/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -60,11 +61,19 @@ func main() {
 
 	fmt.Println("db connected wohooo!!")
 
+	cld, cldErr := asset_upload.InitConfig(Env.CloudinaryUrl)
+
+	if cldErr != nil {
+		zap.L().Error("cloudinary connection failed", zap.Error(cldErr))
+		fmt.Println(cldErr)
+		return
+	}
+
 	//SETUP REDIS SERVER - run container before this pls
 	rdb := cache.RedisClient(Env)
 
 	//handles routes and services
-	app.NewApplication(database, r, rdb)
+	app.NewApplication(database, r, rdb, cld)
 
 	//now we initialize into services and stores
 	//start server
