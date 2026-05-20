@@ -48,6 +48,7 @@ func main() {
 		Net:                  "tcp",
 		Addr:                 Env.DBAddr,
 		DBName:               Env.DBName,
+		ParseTime:            true,
 		AllowNativePasswords: true,
 	}).FormatDSN()
 

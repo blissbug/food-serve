@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"food-serve.com/pkg/config"
@@ -109,4 +110,13 @@ func UploadImagesToCloudinary(files []*multipart.FileHeader, cld *cloudinary.Clo
 		}
 	}
 	return ItemImageData, nil
+}
+
+func GetParamInUint(key string, ctx *gin.Context) (uint, error) {
+	value := ctx.Param(key)
+	result, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("parameter %s is not an integer", key)
+	}
+	return uint(result), nil
 }

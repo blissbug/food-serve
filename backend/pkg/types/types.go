@@ -1,6 +1,10 @@
 package types
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type User struct {
 	gorm.Model
@@ -43,7 +47,6 @@ type RefreshToken struct {
 
 // go automatically maps kitchenMember to kitchen_members table
 type KitchenMember struct {
-	gorm.Model
 	UserID    uint   `json:"user_id"`
 	KitchenID uint   `json:"kitchen_id"`
 	Role      string `json:"role"`
@@ -110,4 +113,39 @@ type ImageDataStruct struct {
 	ImageURL            string `json:"imageUrl"`
 	OriginalDestination string `json:"originalDestination"`
 	OriginalOrder       int    `json:"originalOrder"`
+}
+
+type CreateMenuPayload struct {
+	Date       time.Time  `json:"date" validate:"required,datetime"`
+	Status     string     `json:"status" validate:"required,oneof=active"`
+	OrderOpen  *time.Time `json:"order_open" validate:"datetime"`
+	OrderClose *time.Time `json:"order_close" validate:"datetime"`
+	Items      []int      `json:"items" validate:"required,min=1"`
+}
+
+const MenuStatusActive = "active"
+const MenuStatusDraft = "draft"
+
+type Menu struct {
+	gorm.Model
+	ID         uint       `json:"id"`
+	Date       time.Time  `json:"date" validate:"required,datetime"`
+	Status     string     `json:"status" validate:"required,oneof=active"`
+	OrderOpen  *time.Time `json:"order_open" validate:"datetime"`
+	OrderClose *time.Time `json:"order_close" validate:"datetime"`
+	UpdatedBy  uint       `json:"updated_by" validate:"required,uint"`
+	CreatedBy  uint       `json:"created_by" validate:"required,uint"`
+	KitchenID  uint       `json:"kitchen_id" validate:"required,uint"`
+}
+
+type MenuItem struct {
+	ID          uint    `json:"id"`
+	MenuID      uint    `json:"menu_id"`
+	FoodItemID  uint    `json:"food_item_id"`
+	Price       float64 `json:"price" validate:"numeric"`
+	IsAvailable bool    `json:"is_available"`
+}
+
+type PublishMenuPayload struct {
+	Status string `json:"status" validate:"required,oneof=active"`
 }
