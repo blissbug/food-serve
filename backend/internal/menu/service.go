@@ -2,19 +2,54 @@ package menu
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"food-serve.com/internal/cache"
+	menuItems "food-serve.com/internal/menu-items"
 	"food-serve.com/pkg/types"
 	"food-serve.com/pkg/validator"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	MenuStore *Store
+	MenuStore      *Store
+	MenuItemsStore *menuItems.Store
+	rdb            cache.Cache
 }
 
-func NewService(MenuStore *Store) *Service {
-	return &Service{MenuStore: MenuStore}
+func NewService(MenuStore *Store, MenuItemsStore *menuItems.Store, rdb cache.Cache) *Service {
+	return &Service{
+		MenuStore:      MenuStore,
+		MenuItemsStore: MenuItemsStore,
+		rdb:            rdb,
+	}
+}
+
+func (menuService *Service) GetMenuService(kitchenId uint, currentDate time.Time) (types.Menu, []types.MenuItem, error) {
+	menu, dbErr := menuService.MenuStore.GetMenuByDate(kitchenId, currentDate)
+
+	if dbErr != nil {
+		return menu, []types.MenuItem{}, dbErr
+	}
+
+	if menu.ID == 0 {
+		return menu, []types.MenuItem{}, errors.New("no menu found for today")
+	}
+
+	menuItemsForTodayMenu, err := menuService.MenuItemsStore.GetMenuItemsForMenuId(menu.ID)
+
+	if err != nil {
+		return menu, []types.MenuItem{}, err
+	}
+
+	if len(menuItemsForTodayMenu) == 0 {
+		return menu, []types.MenuItem{}, errors.New("no menu items found for today")
+	}
+
+	return menu, menuItemsForTodayMenu, nil
 }
 
 func (menuService *Service) CreateMenuService(CreateMenuPayload types.CreateMenuPayload, CreatedBy uint, KitchenId uint) error {
@@ -91,10 +126,20 @@ func (menuService *Service) CreateMenuService(CreateMenuPayload types.CreateMenu
 		for _, fd := range FoodItemsList {
 			var FoodItem types.FoodItem
 
-			resp := tx.Find(&FoodItem, fd)
+			resp := tx.
+				Where(
+					"id=? AND kitchen_id=?",
+					fd,
+					KitchenId,
+				).
+				First(&FoodItem)
 
 			if resp.Error != nil {
 				return resp.Error
+			}
+
+			if !FoodItem.IsActive {
+				return errors.New("cannot add inactive food item to menu")
 			}
 
 			MenuItem := types.MenuItem{
@@ -129,7 +174,7 @@ func (menuService *Service) PublishMenuService(PublishMenuPayload types.PublishM
 		return validationErr
 	}
 
-	menu, exists, err := menuService.MenuStore.GetMenu(menuId, kitchenId)
+	menu, exists, err := menuService.MenuStore.GetMenuById(menuId, kitchenId)
 
 	if err != nil {
 		return err
@@ -159,8 +204,8 @@ func (menuService *Service) PublishMenuService(PublishMenuPayload types.PublishM
 	return nil
 }
 
-func (menuService *Service) UpdateMenuService(UpdateMenuPayload types.UpdateMenuPayload, menuId uint, kitchenId uint) error {
-	menu, exists, err := menuService.MenuStore.GetMenu(menuId, kitchenId)
+func (menuService *Service) UpdateMenuService(ctx *gin.Context, UpdateMenuPayload types.UpdateMenuPayload, menuId uint, kitchenId uint) error {
+	menu, exists, err := menuService.MenuStore.GetMenuById(menuId, kitchenId)
 
 	if err != nil {
 		return err
@@ -302,11 +347,23 @@ func (menuService *Service) UpdateMenuService(UpdateMenuPayload types.UpdateMenu
 		return transactionErr
 	}
 
+	if !isDraft {
+		currDate := time.Now().Format("2006-01-02")
+		menuDate := menu.Date.Format("2006-01-02")
+		menuCacheKey := fmt.Sprintf("menu:today:%s", kitchenId)
+		if currDate == menuDate {
+			redisErr := menuService.rdb.DeleteKey(ctx, menuCacheKey)
+			if redisErr != nil {
+				zap.L().Error("error deleting menu cache", zap.Error(redisErr))
+			}
+		}
+	}
+
 	return nil
 }
 
 func (menuService *Service) DeleteMenuService(menuId uint, kitchenId uint) error {
-	menu, exists, err := menuService.MenuStore.GetMenu(menuId, kitchenId)
+	menu, exists, err := menuService.MenuStore.GetMenuById(menuId, kitchenId)
 
 	if err != nil {
 		return err

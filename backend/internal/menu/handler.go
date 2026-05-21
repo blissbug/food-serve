@@ -1,7 +1,10 @@
 package menu
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
+	"time"
 
 	"food-serve.com/internal/middleware"
 	"food-serve.com/pkg/response"
@@ -16,6 +19,52 @@ type Handler struct {
 
 func NewHandler(menuService *Service) *Handler {
 	return &Handler{MenuService: menuService}
+}
+func (h Handler) GetMenuHandler(ctx *gin.Context) {
+	kitchenId, err := utils.GetParamInUint("kitchenId", ctx)
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	yyyy, mm, dd := time.Now().Date()
+	currentDate := time.Date(yyyy, mm, dd, 0, 0, 0, 0, time.UTC)
+
+	menuCacheKey := fmt.Sprintf("menu:today:%s", kitchenId)
+	cached, err := h.MenuService.rdb.GetKey(ctx, menuCacheKey)
+
+	if err == nil {
+		var data gin.H
+		err = json.Unmarshal([]byte(cached), &data)
+
+		if err == nil {
+			response.JSON(ctx, data)
+			return
+		}
+	}
+
+	menu, menuItems, err := h.MenuService.GetMenuService(kitchenId, currentDate)
+
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	payload := gin.H{"menu": menu, "menuItems": menuItems, "message": "Menu fetched successfully"}
+	data, err := json.Marshal(payload)
+
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+	err = h.MenuService.rdb.SetKey(ctx, menuCacheKey, data, time.Minute*2)
+
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	response.JSON(ctx, payload)
 }
 
 func (h Handler) CreateMenuHandler(ctx *gin.Context) {
@@ -96,8 +145,13 @@ func (h Handler) UpdateMenuHandler(ctx *gin.Context) {
 		return
 	}
 
-	h.MenuService.UpdateMenuService(UpdateMenuPayload, menuId, kitchenId)
-	//if its draft -> we can update the menu items, open and close time, price, date
+	err = h.MenuService.UpdateMenuService(ctx, UpdateMenuPayload, menuId, kitchenId)
+
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+	response.JSON(ctx, "Menu updated successfully")
 }
 
 func (h Handler) DeleteMenuHandler(ctx *gin.Context) {

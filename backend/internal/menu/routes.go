@@ -10,7 +10,7 @@ func (h Handler) RegisterRoutes(r *gin.RouterGroup) {
 
 	menuGroup := kitchenGroup.Group("/menu")
 	//accessible to anyone subscribed to kitchen if published
-	menuGroup.GET("/today")
+	menuGroup.GET("/today", h.GetMenuHandler)
 
 	adminOnlyMenuGroup := menuGroup.Use(middleware.IsAdmin())
 	// add middleware to check if it is the admin else restrict

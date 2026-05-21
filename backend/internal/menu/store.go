@@ -1,6 +1,8 @@
 package menu
 
 import (
+	"time"
+
 	"food-serve.com/pkg/types"
 	"gorm.io/gorm"
 )
@@ -22,7 +24,7 @@ func (menuStore *Store) CreateMenu(MenuItem types.Menu) (uint, error) {
 	return MenuItem.ID, nil
 }
 
-func (menuStore *Store) GetMenu(menuId uint, kitchenId uint) (types.Menu, bool, error) {
+func (menuStore *Store) GetMenuById(menuId uint, kitchenId uint) (types.Menu, bool, error) {
 	var menu types.Menu
 	resp := menuStore.store.Find(&menu, "id = ? && kitchen_id = ?", menuId, kitchenId)
 	if resp.Error != nil {
@@ -55,4 +57,14 @@ func (menuStore *Store) DeleteMenu(menuId uint, kitchenId uint) error {
 		return resp.Error
 	}
 	return nil
+}
+
+func (menuStore *Store) GetMenuByDate(kitchenId uint, date time.Time) (types.Menu, error) {
+	var menu types.Menu
+	resp := menuStore.store.Where("kitchen_id = ? AND date = ?", kitchenId, date).Find(&menu)
+
+	if resp.Error != nil {
+		return menu, resp.Error
+	}
+	return menu, nil
 }

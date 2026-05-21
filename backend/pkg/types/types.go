@@ -127,15 +127,20 @@ const MenuStatusActive = "active"
 const MenuStatusDraft = "draft"
 
 type Menu struct {
-	gorm.Model
-	ID         uint       `json:"id"`
+	ID        uint `json:"id"`
+	KitchenID uint `json:"kitchen_id" validate:"required,uint"`
+
 	Date       time.Time  `json:"date" validate:"required,datetime"`
 	Status     string     `json:"status" validate:"required,oneof=active"`
 	OrderOpen  *time.Time `json:"order_open" validate:"datetime"`
 	OrderClose *time.Time `json:"order_close" validate:"datetime"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 	UpdatedBy  uint       `json:"updated_by" validate:"required,uint"`
-	CreatedBy  uint       `json:"created_by" validate:"required,uint"`
-	KitchenID  uint       `json:"kitchen_id" validate:"required,uint"`
+
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy uint      `json:"created_by" validate:"required,uint"`
+
+	DeletedAt gorm.DeletedAt `json:"deleted_at"`
 }
 
 type MenuItem struct {

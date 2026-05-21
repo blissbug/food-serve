@@ -7,6 +7,7 @@ import (
 	"food-serve.com/internal/kitchen"
 	kitchenmembers "food-serve.com/internal/kitchen-members"
 	"food-serve.com/internal/menu"
+	menuItems "food-serve.com/internal/menu-items"
 	"food-serve.com/internal/middleware"
 	"food-serve.com/internal/user"
 	"github.com/cloudinary/cloudinary-go/v2"
@@ -45,7 +46,8 @@ func NewApplication(database *gorm.DB, r *gin.Engine, rdb cache.Cache, cld *clou
 	kitchenService.RegisterRoutes(authenticated)
 
 	menuStore := menu.NewStore(database)
-	menuService := menu.NewService(menuStore)
+	menuItemsStore := menuItems.NewStore(database)
+	menuService := menu.NewService(menuStore, menuItemsStore, rdb)
 	menuHandler := menu.NewHandler(menuService)
 	menuHandler.RegisterRoutes(authenticated)
 
