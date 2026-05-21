@@ -149,3 +149,10 @@ type MenuItem struct {
 type PublishMenuPayload struct {
 	Status string `json:"status" validate:"required,oneof=active"`
 }
+
+type UpdateMenuPayload struct {
+	Items      []int      `json:"items" validate:"required,min=1"`
+	Date       *time.Time `json:"date"`
+	OrderOpen  *time.Time `json:"order_open"`
+	OrderClose *time.Time `json:"order_close"`
+}

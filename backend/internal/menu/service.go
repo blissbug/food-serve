@@ -158,3 +158,173 @@ func (menuService *Service) PublishMenuService(PublishMenuPayload types.PublishM
 
 	return nil
 }
+
+func (menuService *Service) UpdateMenuService(UpdateMenuPayload types.UpdateMenuPayload, menuId uint, kitchenId uint) error {
+	menu, exists, err := menuService.MenuStore.GetMenu(menuId, kitchenId)
+
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("no such menu exists in your kitchen")
+	}
+
+	isDraft := menu.Status == types.MenuStatusDraft
+
+	var UpdatedMenu types.Menu
+
+	if UpdateMenuPayload.Date != nil {
+		if !isDraft {
+			return errors.New("cannot update date of published menu")
+		}
+		UpdatedMenu.Date = *UpdateMenuPayload.Date
+	}
+
+	if UpdateMenuPayload.OrderOpen != nil {
+		if !isDraft {
+			return errors.New("cannot update order open timings of published menu")
+		}
+		UpdatedMenu.OrderOpen = UpdateMenuPayload.OrderOpen
+	}
+
+	if UpdateMenuPayload.OrderClose != nil {
+		if !isDraft {
+			if UpdateMenuPayload.OrderClose.Before(time.Now()) {
+				return errors.New("cannot update order close timings to a time in the past")
+			}
+		}
+		UpdatedMenu.OrderClose = UpdateMenuPayload.OrderClose
+	}
+
+	transactionErr := menuService.MenuStore.store.Transaction(func(tx *gorm.DB) error {
+		var menuItems []types.MenuItem
+		resp := tx.Where("menu_id = ?", menuId).Find(&menuItems)
+		if resp.Error != nil {
+			return resp.Error
+		}
+
+		existingItems := make(map[uint]types.MenuItem, len(menuItems))
+		for _, item := range menuItems {
+			existingItems[item.FoodItemID] = item
+		}
+		for _, item := range UpdateMenuPayload.Items {
+			var foodItem types.FoodItem
+			//TODO: improve this to one call to db
+			foodItemResp := tx.
+				Where(
+					"id=? AND kitchen_id=?",
+					item,
+					kitchenId,
+				).
+				First(&foodItem)
+
+			if foodItemResp.Error != nil {
+				return foodItemResp.Error
+			}
+
+			if existingItem, ok := existingItems[uint(item)]; ok {
+				if isDraft {
+					//update with price
+					resp := tx.
+						Model(&types.MenuItem{}).
+						Where(
+							"menu_id=? AND food_item_id=?",
+							menuId,
+							item,
+						).
+						Update("price", foodItem.Price)
+					if resp.Error != nil {
+						return resp.Error
+					}
+				}
+				if !isDraft && !existingItem.IsAvailable {
+
+					if !foodItem.IsActive {
+						return errors.New("cannot reactivate inactive item")
+					}
+
+					resp := tx.
+						Model(&types.MenuItem{}).
+						Where(
+							"menu_id=? AND food_item_id=?",
+							menuId,
+							item,
+						).
+						Update("is_available", true)
+
+					if resp.Error != nil {
+						return resp.Error
+					}
+				}
+				delete(existingItems, uint(item))
+			} else {
+
+				if !foodItem.IsActive {
+					return errors.New("cannot add inactive food item to menu")
+				}
+
+				menuItem := types.MenuItem{
+					MenuID:      menuId,
+					FoodItemID:  uint(item),
+					IsAvailable: true,
+					Price:       foodItem.Price,
+				}
+				resp := tx.Create(&menuItem)
+
+				if resp.Error != nil {
+					return resp.Error
+				}
+			}
+		}
+
+		for _, item := range existingItems {
+			if isDraft {
+				resp := tx.Delete(&item)
+				if resp.Error != nil {
+					return resp.Error
+				}
+			} else {
+				resp := tx.Model(&item).Update("is_available", false)
+				if resp.Error != nil {
+					return resp.Error
+				}
+			}
+		}
+		resp = tx.Model(&menu).Updates(&UpdatedMenu)
+		if resp.Error != nil {
+			return resp.Error
+		}
+		return nil
+	})
+
+	if transactionErr != nil {
+		return transactionErr
+	}
+
+	return nil
+}
+
+func (menuService *Service) DeleteMenuService(menuId uint, kitchenId uint) error {
+	menu, exists, err := menuService.MenuStore.GetMenu(menuId, kitchenId)
+
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("no such menu exists in your kitchen")
+	}
+
+	if menu.Status == types.MenuStatusActive {
+		return errors.New("menu is active, cannot delete")
+	}
+
+	dbErr := menuService.MenuStore.DeleteMenu(menuId, kitchenId)
+
+	if dbErr != nil {
+		return dbErr
+	}
+
+	return nil
+}

@@ -47,3 +47,12 @@ func (menuStore *Store) PublishMenu(menuId uint) error {
 	}
 	return nil
 }
+
+func (menuStore *Store) DeleteMenu(menuId uint, kitchenId uint) error {
+	resp := menuStore.store.Where("id = ? && kitchen_id = ?", menuId, kitchenId).Delete(&types.Menu{})
+
+	if resp.Error != nil {
+		return resp.Error
+	}
+	return nil
+}

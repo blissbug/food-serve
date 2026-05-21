@@ -74,3 +74,51 @@ func (h Handler) PublishMenuHandler(ctx *gin.Context) {
 	}
 	response.JSON(ctx, "Menu published successfully")
 }
+
+func (h Handler) UpdateMenuHandler(ctx *gin.Context) {
+	//if is active -> we can only update the availability of the items in menu
+	//like they set something, and I fetch from the food items list in payload, close timing which cannot be before that current time ofc
+	menuId, err := utils.GetParamInUint("menuId", ctx)
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	kitchenId, err := utils.GetParamInUint("kitchenId", ctx)
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	var UpdateMenuPayload types.UpdateMenuPayload
+	if err := ctx.ShouldBind(&UpdateMenuPayload); err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	h.MenuService.UpdateMenuService(UpdateMenuPayload, menuId, kitchenId)
+	//if its draft -> we can update the menu items, open and close time, price, date
+}
+
+func (h Handler) DeleteMenuHandler(ctx *gin.Context) {
+	menuId, err := utils.GetParamInUint("menuId", ctx)
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	kitchenId, err := utils.GetParamInUint("kitchenId", ctx)
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	err = h.MenuService.DeleteMenuService(menuId, kitchenId)
+
+	if err != nil {
+		response.Error(ctx, err, 500)
+		return
+	}
+
+	response.JSON(ctx, "Menu deleted successfully")
+}

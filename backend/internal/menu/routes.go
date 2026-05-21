@@ -17,6 +17,6 @@ func (h Handler) RegisterRoutes(r *gin.RouterGroup) {
 	//kitchen admin only
 	adminOnlyMenuGroup.POST("/create", h.CreateMenuHandler)
 	adminOnlyMenuGroup.PATCH(":menuId/publish", h.PublishMenuHandler)
-	adminOnlyMenuGroup.PATCH("/today")
-	adminOnlyMenuGroup.DELETE("/today")
+	adminOnlyMenuGroup.PATCH("/:menuId/update", h.UpdateMenuHandler)
+	adminOnlyMenuGroup.DELETE("/:menuId/delete", h.DeleteMenuHandler)
 }
